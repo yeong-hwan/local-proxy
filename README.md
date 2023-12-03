@@ -5,6 +5,10 @@
   <img src="imgs/psuedo_code.png" alt="drawing" width=700"/>
 </div>
 
+## How to run
+```zsh
+python3 proxy.py 8080
+```
 
 
 ## Snapshots
