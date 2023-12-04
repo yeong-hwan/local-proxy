@@ -3,14 +3,11 @@ from threading import Thread
 import re
 import sys
 import time
+from urllib.parse import parse_qs
+
 
 def handle_client(client_socket, port, count):
-   
-
-
     request_data = client_socket.recv(4096)
-    # if request_data == b'':
-    #     continue
 
     # Extracting the destination host from the request'
     host_data = request_data.decode().splitlines()[1]
@@ -34,7 +31,7 @@ def handle_client(client_socket, port, count):
     # Check for URL Filtering
     url_filter = "O" if 'korea' in request_client_info else "X"
 
-    # print(request_data.decode())
+    # print(request_data.decode())p
     request_data_dict = {}
     for line in request_data.decode().splitlines():
         try:
@@ -62,18 +59,6 @@ def handle_client(client_socket, port, count):
 
     server_socket.sendall(request_data)
     
-    # while True:
-    #     # Send the data and get the number of bytes sent
-    #     sent_bytes = server_socket.send(request_data)
-    #     print(sent_bytes)
-        
-    #     # Check if all data is sent
-    #     if sent_bytes == 0:
-    #         # All data sent, break out of the loop
-    #         break
-    #     else:
-    #         # Update request_data to send the remaining data
-    #         request_data = request_data[sent_bytes:]
 
     # Print log for the received request
     print("-----------------------------------------------")
@@ -87,10 +72,12 @@ def handle_client(client_socket, port, count):
     print(f"[SRV connected to {destination_host}:{server_socket.getpeername()[1]}]")    
 
     print(f"[CLI --- PRX ==> SRV]")
+    request_server_info = request_client_info
     prefix = "GET "
-
+    
     if url_filter == "O":
         request_server_info = prefix + destination_host
+
     print(f" > {request_server_info}")
     print(f" > {cleaned_user_agent}")
 
@@ -117,26 +104,27 @@ def handle_client(client_socket, port, count):
 
     print(f" > {cleaned_status}")
     print(f" > {response_content} {response_bytes}bytes")
-
-    # print(response_data.decode())
     
     # Print log for the received response
     print(f"[CLI <== PRX --- SRV]")
 
     if image_filter == "O":
-        print("IMAGE FILTER")
-        print(request_data.decode().splitlines())
+        if response_content.startswith("image"):
+            print(f" > 404 Not Found")
+        else:
+            print(f" > {cleaned_status}")
+            print(f" > {response_content} {response_bytes}bytes")
+            client_socket.sendall(response_data)
     else:
         print(f" > {cleaned_status}")
         print(f" > {response_content} {response_bytes}bytes")
 
-    # Forward the modified response to the client
-    client_socket.sendall(response_data)
+        # Forward the modified response to the client
+        client_socket.sendall(response_data)
 
     # Close the connections
-    
-    print("[CLI disconnected]")
     client_socket.close()
+    print("[CLI disconnected]")
 
     server_socket.close()
     print("[SRV disconnected]")
@@ -149,21 +137,16 @@ def start_proxy(port):
     
     print(f"Starting proxy server on port {port}")
 
-
+    # image filter flag
     global image_filter
     image_filter = "X"
 
     count = 1
     while True:
         client_socket, addr = proxy_socket.accept()
-        # client_handler = Thread(target=handle_client, args=(client_socket, port, count))
-        # client_handler.start()
-        # client_handler.join()
         handle_client(client_socket, port, count)
         count += 1
-        
-        
-    
+
     proxy_socket.close()
 
 if __name__ == '__main__':
