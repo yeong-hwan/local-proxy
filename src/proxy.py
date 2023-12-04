@@ -4,10 +4,9 @@ import re
 import sys
 import time
 
-
-
 def handle_client(client_socket, port, count):
-    request_data = client_socket.recv(1024)
+    request_data = client_socket.recv(4096)
+
 
     # Extracting the destination host from the request'
     host_data = request_data.decode().splitlines()[1]
@@ -41,8 +40,17 @@ def handle_client(client_socket, port, count):
 
     # Print log for the request and response
     print(f"[CLI ==> PRX --- SRV]")
+    # print(request_data.decode())
+    request_data_dict = {}
+    for line in request_data.decode().splitlines():
+        try:
+            title, content = line.split(": ")
+            request_data_dict[title] = content
+        except:
+            pass
 
-    response_user_agent = request_data.decode().splitlines()[5]
+
+    response_user_agent = request_data_dict['User-Agent']
     end_index = response_user_agent.find(")")
     cleaned_user_agent = response_user_agent[:end_index+1].replace("User-Agent: ", "")
 
@@ -57,8 +65,8 @@ def handle_client(client_socket, port, count):
 
     try: 
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.connect((destination_host,  80))
-        # server_socket.connect(('renewaloffaith.org', 80))
+        # server_socket.connect((destination_host,  80))
+        server_socket.connect(('mnet.yonsei.ac.kr', 80))
         # request = b'CONNECT mnet.yonsei.ac.kr/hw/test.html HTTP/1.1\n\n'
         # server_socket.send(request)
         # print("good")
@@ -67,30 +75,39 @@ def handle_client(client_socket, port, count):
         print("\nServer socket error: " + str(e))
 
 
-    while True:
-        print(request_data.decode())
-        if request_data:
-            server_socket.sendall(request_data)
-        break
+    # while True:
+    #     print(request_data.decode())
+    #     if request_data:
+    #         server_socket.sendall(request_data)
+    #     break
 
+
+    server_socket.sendall(request_data)
 
     print(f"[CLI --- PRX <== SRV]")
     # Receive the response from the server
     response_data = server_socket.recv(4096)
-    print(response_data.decode())
+    
+    response_data_dict = {}
+    for line in response_data.decode('iso-8859-1').splitlines():
+        try:
+            title, content = line.split(": ")
+            response_data_dict[title] = content
+        except:
+            pass
 
     # status
-    response_status = response_data.decode().splitlines()[0]
+    response_status = response_data.decode('iso-8859-1').splitlines()[0]
     cleaned_status = re.sub(r'HTTP/1\.\d\s', '', response_status)
 
     # content, bytes
-    response_content = response_data.decode().splitlines()[1]
-    response_bytes = response_data.decode().splitlines()[3]
-    cleaned_content = response_content.replace("Content-Type: ", "")
-    cleaned_bytes = response_bytes.replace("Content-Length: ", "")
+    response_content = response_data_dict['Content-Type']
+    response_bytes = response_data_dict['Content-Length']
+    # cleaned_content = response_content.replace("Content-Type: ", "")
+    # cleaned_bytes = response_bytes.replace("Content-Length: ", "")
 
     print(f" > {cleaned_status}")
-    print(f" > {cleaned_content} {cleaned_bytes}bytes")
+    print(f" > {response_content} {response_bytes}bytes")
 
     # print(response_data.decode())
 
@@ -100,8 +117,6 @@ def handle_client(client_socket, port, count):
 
     # Forward the modified response to the client
     client_socket.sendall(response_data)
-    
-    
 
     
     # if response_data:
