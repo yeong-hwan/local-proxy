@@ -7,16 +7,12 @@ import time
 def handle_client(client_socket, port, count):
     request_data = client_socket.recv(4096)
 
-
     # Extracting the destination host from the request'
     host_data = request_data.decode().splitlines()[1]
     host_pattern = re.compile(r'Host:\s*(.+)')
     match = host_pattern.search(host_data)
 
     destination_host = match.group(1)
-
-    # Print log for the received request
-    print("-----------------------------------------------")
 
     request_from_client = request_data.decode().splitlines()[0]
     request_client_pattern = re.compile(r'HTTP/.*')
@@ -33,13 +29,7 @@ def handle_client(client_socket, port, count):
     # Check for URL Filtering
     url_filter = "O" if 'korea' in request_client_info else "X"
     
-    print(f"{count} [{url_filter}] Redirected [{image_filter}] Image filter")
-
-    print(f"[CLI connected to {client_socket.getpeername()[0]}:{client_socket.getpeername()[1]}]")
-
-
-    # Print log for the request and response
-    print(f"[CLI ==> PRX --- SRV]")
+    
     # print(request_data.decode())
     request_data_dict = {}
     for line in request_data.decode().splitlines():
@@ -49,15 +39,9 @@ def handle_client(client_socket, port, count):
         except:
             pass
 
-
     response_user_agent = request_data_dict['User-Agent']
     end_index = response_user_agent.find(")")
     cleaned_user_agent = response_user_agent[:end_index+1].replace("User-Agent: ", "")
-
-    print(f" > {request_client_info}")
-    print(f" > {cleaned_user_agent}")
-    
-    print(f"[CLI --- PRX ==> SRV]")
 
     # Connect to the destination server
     server_socket = None
@@ -65,29 +49,44 @@ def handle_client(client_socket, port, count):
 
     try: 
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # server_socket.connect((destination_host,  80))
-        server_socket.connect(('mnet.yonsei.ac.kr', 80))
-        # request = b'CONNECT mnet.yonsei.ac.kr/hw/test.html HTTP/1.1\n\n'
-        # server_socket.send(request)
-        # print("good")
-
+        if url_filter == "O":
+            destination_host = "mnet.yonsei.ac.kr"
+            print("URL FILTER FLAG")
+        server_socket.connect((destination_host,  80))
+        
     except Exception as e:
         print("\nServer socket error: " + str(e))
 
+    
+    
 
     # while True:
-    #     print(request_data.decode())
     #     if request_data:
     #         server_socket.sendall(request_data)
-    #     break
-
-
+    #     else:
+    #         break;
     server_socket.sendall(request_data)
+    # server_socket.sendall(request_data)
+    # server_socket.sendall(request_data)
 
-    print(f"[CLI --- PRX <== SRV]")
-    # Receive the response from the server
-    response_data = server_socket.recv(4096)
     
+    response_data = server_socket.recv(4096)
+
+    # Print log for the received request
+    print("-----------------------------------------------")
+    print(f"{count} [{url_filter}] Redirected [{image_filter}] Image filter")
+    print(f"[CLI connected to {client_socket.getpeername()[0]}:{client_socket.getpeername()[1]}]")
+
+    # Print log for the request and response
+    print(f"[CLI ==> PRX --- SRV]")
+    print(f" > {request_client_info}")
+    print(f" > {cleaned_user_agent}")
+    print(f"[SRV connected to {destination_host}:{server_socket.getpeername()[1]}]")    
+
+    print(f"[CLI --- PRX ==> SRV]")
+
+    # Receive the response from the server
+    print(f"[CLI --- PRX <== SRV]")
     response_data_dict = {}
     for line in response_data.decode('iso-8859-1').splitlines():
         try:
@@ -103,8 +102,6 @@ def handle_client(client_socket, port, count):
     # content, bytes
     response_content = response_data_dict['Content-Type']
     response_bytes = response_data_dict['Content-Length']
-    # cleaned_content = response_content.replace("Content-Type: ", "")
-    # cleaned_bytes = response_bytes.replace("Content-Length: ", "")
 
     print(f" > {cleaned_status}")
     print(f" > {response_content} {response_bytes}bytes")
@@ -115,14 +112,16 @@ def handle_client(client_socket, port, count):
     # Print log for the received response
     print(f"[CLI <== PRX --- SRV]")
 
+    if image_filter == "O":
+        print("IMAGE FILTER")
+        print(request_data.decode().splitlines())
+    else:
+        print(f" > {cleaned_status}")
+        print(f" > {response_content} {response_bytes}bytes")
+
     # Forward the modified response to the client
     client_socket.sendall(response_data)
 
-    
-    # if response_data:
-    #     print(f" > {response_data.decode().splitlines()[0]}")
-    #     print(f" > {response_data.decode().splitlines()[1]}")
-    
     # Close the connections
     client_socket.close()
     print("[CLI disconnected]")
@@ -134,7 +133,7 @@ def start_proxy(port):
     proxy_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     LOCAL_HOST = '127.0.0.1'
     proxy_socket.bind((LOCAL_HOST, port))
-    proxy_socket.listen(5)
+    proxy_socket.listen(10)
     
     print(f"Starting proxy server on port {port}")
 
