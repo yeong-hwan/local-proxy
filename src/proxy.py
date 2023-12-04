@@ -5,7 +5,12 @@ import sys
 import time
 
 def handle_client(client_socket, port, count):
+   
+
+
     request_data = client_socket.recv(4096)
+    # if request_data == b'':
+    #     continue
 
     # Extracting the destination host from the request'
     host_data = request_data.decode().splitlines()[1]
@@ -22,14 +27,13 @@ def handle_client(client_socket, port, count):
     global image_filter
     if 'image_off' in request_client_info:
         image_filter = "O" 
-    
+
     if 'image_on' in request_client_info:
         image_filter = "X" 
 
     # Check for URL Filtering
     url_filter = "O" if 'korea' in request_client_info else "X"
-    
-    
+
     # print(request_data.decode())
     request_data_dict = {}
     for line in request_data.decode().splitlines():
@@ -51,26 +55,25 @@ def handle_client(client_socket, port, count):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if url_filter == "O":
             destination_host = "mnet.yonsei.ac.kr"
-            print("URL FILTER FLAG")
         server_socket.connect((destination_host,  80))
-        
     except Exception as e:
         print("\nServer socket error: " + str(e))
+        
 
-    
-    
-
-    # while True:
-    #     if request_data:
-    #         server_socket.sendall(request_data)
-    #     else:
-    #         break;
     server_socket.sendall(request_data)
-    # server_socket.sendall(request_data)
-    # server_socket.sendall(request_data)
-
     
-    response_data = server_socket.recv(4096)
+    # while True:
+    #     # Send the data and get the number of bytes sent
+    #     sent_bytes = server_socket.send(request_data)
+    #     print(sent_bytes)
+        
+    #     # Check if all data is sent
+    #     if sent_bytes == 0:
+    #         # All data sent, break out of the loop
+    #         break
+    #     else:
+    #         # Update request_data to send the remaining data
+    #         request_data = request_data[sent_bytes:]
 
     # Print log for the received request
     print("-----------------------------------------------")
@@ -84,19 +87,28 @@ def handle_client(client_socket, port, count):
     print(f"[SRV connected to {destination_host}:{server_socket.getpeername()[1]}]")    
 
     print(f"[CLI --- PRX ==> SRV]")
+    prefix = "GET "
+
+    if url_filter == "O":
+        request_server_info = prefix + destination_host
+    print(f" > {request_server_info}")
+    print(f" > {cleaned_user_agent}")
 
     # Receive the response from the server
     print(f"[CLI --- PRX <== SRV]")
+    response_data = server_socket.recv(4096)
+    response_lines = response_data.decode('iso-8859-1').splitlines()
+
     response_data_dict = {}
-    for line in response_data.decode('iso-8859-1').splitlines():
+    for line in response_lines:
         try:
             title, content = line.split(": ")
             response_data_dict[title] = content
         except:
             pass
-
+    
     # status
-    response_status = response_data.decode('iso-8859-1').splitlines()[0]
+    response_status = response_lines[0]
     cleaned_status = re.sub(r'HTTP/1\.\d\s', '', response_status)
 
     # content, bytes
@@ -107,7 +119,6 @@ def handle_client(client_socket, port, count):
     print(f" > {response_content} {response_bytes}bytes")
 
     # print(response_data.decode())
-
     
     # Print log for the received response
     print(f"[CLI <== PRX --- SRV]")
@@ -123,8 +134,9 @@ def handle_client(client_socket, port, count):
     client_socket.sendall(response_data)
 
     # Close the connections
-    client_socket.close()
+    
     print("[CLI disconnected]")
+    client_socket.close()
 
     server_socket.close()
     print("[SRV disconnected]")
@@ -144,10 +156,15 @@ def start_proxy(port):
     count = 1
     while True:
         client_socket, addr = proxy_socket.accept()
-        client_handler = Thread(target=handle_client, args=(client_socket, port, count))
-        client_handler.start()
-
+        # client_handler = Thread(target=handle_client, args=(client_socket, port, count))
+        # client_handler.start()
+        # client_handler.join()
+        handle_client(client_socket, port, count)
         count += 1
+        
+        
+    
+    proxy_socket.close()
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
